@@ -19,9 +19,10 @@ class Game:
                     pg.quit()
                     sys.exit()
 
-            if self.pelota.x <= 0 or self.pelota.x + self.pelota.escala >= 800: #también self.pelota.rect.right
+            if self.pelota.rect.left <= 0 or self.pelota.rect.right >= 800:
                 self.pelota.vx = -self.pelota.vx
-            if self.pelota.y <= 0 or self.pelota.y + self.pelota.escala >= 600: #también self.pelota.rect.bottom
+
+            if self.pelota.rect.top <= 0 or self.pelota.rect.bottom >= 600:
                 self.pelota.vy = -self.pelota.vy
 
             self.pelota.x += self.pelota.vx

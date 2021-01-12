@@ -12,4 +12,28 @@ class Pelota:
         self.imagen = pg.Surface((self.escala, self.escala))
         self.imagen.fill(self.color)
         
-        self.rect = pg.Rect(self.x, self.y, self.escala, self.escala)
+
+    @property
+    def rect(self):
+        return pg.Rect(self.x, self.y, self.escala, self.escala)
+    '''
+    Para evitar el rect en main
+
+    @property
+    def right(self):
+        return self.rect.right
+
+    @property 
+    def left(self):
+        return self.rect.left
+
+    @property 
+    def top(self):
+        rect = pg.Rect(self.x, self.y, self.escala, self.escala)
+        return rect.top
+
+    @property 
+    def bottom(self):
+        rect = pg.Rect(self.x, self.y, self.escala, self.escala)
+        return rect.bottom
+    '''
