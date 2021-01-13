@@ -1,4 +1,5 @@
 import pygame as pg
+from pygame.locals import *
 import sys
 import random
 from Arkanoid import GAME_DIMENSIONS, FPS
@@ -8,9 +9,53 @@ from Arkanoid import GAME_DIMENSIONS, FPS
 pg.init()
 
 
+class Raqueta:
+    def __init__(self, x, y, vx):
+        self.x = x
+        self.y = y
+        self.vx = vx
+
+        self.imagen = pg.image.load("resources/images/regular_racket.png")
+
+    @property
+    def rect(self):
+        return self.imagen.get_rect(topleft=(self.x, self.y))
+
+    def actualizar(self):
+        self.x += self.vx
+        if self.x + 128 >= GAME_DIMENSIONS[0]:
+            self.x = GAME_DIMENSIONS[0] - 128
+        if self.x <= 0:
+            self.x = 0 
+
+    def manejar_eventos(self):
+        teclas_pulsadas = pg.key.get_pressed()
+        if teclas_pulsadas[K_RIGHT]:
+            self.vx = 10
+        elif teclas_pulsadas[K_LEFT]:
+            self.vx = -10
+        else:
+            self.vx = 0
+    
+        '''
+        Otra forma:
+
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_RIGHT:
+                self.raqueta.x += 50
+                if self.raqueta.x + 128 >= GAME_DIMENSIONS[0]:
+                    self.raqueta.x = GAME_DIMENSIONS[0] - 128
+            if event.key == pg.K_LEFT:
+                self.raqueta.x -= 50
+                if self.raqueta.x <= 0:
+                    self.raqueta.x = 0        
+        '''
+
+
 class Pelota:
     imagenes_files = ['brown_ball.png', 'blue_ball.png', 'red_ball.png', 'green_ball.png']
     num_imgs_explosion = 8
+    retardo_animaciones = 10
 
     def __init__(self, x, y, vx, vy):
         self.x = x
@@ -22,6 +67,9 @@ class Pelota:
         self.imagen = self.imagenes[self.imagen_act]
         self.imagenes_explosion = self.cargaExplosion()
         self.ix_explosion = 0
+        self.ciclos_tras_refresco = 0
+        self.ticks_acumulados = 0
+        self.ticks_por_frame_de_animacion = 1000//FPS * self.retardo_animaciones
         self.muriendo = False
 
 
@@ -63,28 +111,47 @@ class Pelota:
         self.y += self.vy
 
     def actualizar_disfraz(self):
-        #Gestionar imagen activa (disfraz) de la pelota
-        self.imagen_act += 1
-        if self.imagen_act >= len(self.imagenes):
-            self.imagen_act = 0
+        self.ciclos_tras_refresco += 1
+        if self.ciclos_tras_refresco % self.retardo_animaciones == 0: 
+        #Esta línea también podría ser. if self.ciclos_tras_refresco == self.retardo_animaciones: pero debe actualizar a 0 la variable
+            #Gestionar imagen activa (disfraz) de la pelota
+            self.imagen_act += 1
+            if self.imagen_act >= len(self.imagenes):
+                self.imagen_act = 0
+
         self.imagen = self.imagenes[self.imagen_act]
 
-    def actualizar(self):
+    def explosion(self, dt):
+        if self.ix_explosion >= len(self.imagenes_explosion):
+            # return True -> Esto cierra el juego
+            self.ix_explosion = 0 #mientras trabajamos
+
+        self.imagen = self.imagenes_explosion[self.ix_explosion]
+
+    
+        self.ticks_acumulados += dt
+        if self.ticks_acumulados >= self.ticks_por_frame_de_animacion:
+            self.ix_explosion += 1
+            self.ticks_acumulados = 0
+
+        return False
+    
+    def comprobar_colision(self, algo):
+        if (self.rect.left >= algo.rect.left and self.rect.left <= algo.rect.right or \
+            self.rect.right >= algo.rect.left and self.rect.right <= algo.rect.right) and \
+            self.rect.bottom >= algo.rect.top:
+            
+            self.vy *= -1 
+
+    def actualizar(self, dt):
         self.actualizar_posicion()
 
         if self.muriendo:
-            self.explosion()
-        #else: 
-            #self.actualizar_disfraz() si quisiéramos que se quedase aquí
+            return self.explosion(dt)
+        else:
+            self.actualizar_disfraz()
 
-    def explosion(self):
-        if self.ix_explosion >= len(self.imagenes_explosion):
-            #terminar programa 
-            self.ix_explosion = 0
-
-        self.imagen = self.imagenes_explosion[self.ix_explosion]
-        self.ix_explosion += 1
-
+        return False
 
 
 class Game:
@@ -92,22 +159,34 @@ class Game:
         self.pantalla = pg.display.set_mode(GAME_DIMENSIONS)
         pg.display.set_caption("Futuro Arkanoid")
         self.pelota = Pelota(400, 300, 10, 10)
+        self.raqueta = Raqueta(336, 550, 0)
         self.clock = pg.time.Clock()
         #TODO Background
 
     def main_loop(self):
         game_over = False
+
         while not game_over:
-            print(self.clock.tick(FPS))
+            dt = self.clock.tick(FPS)
+            #Gestión de eventos
             events = pg.event.get()
             for event in events:
                 if event.type == pg.QUIT:
                     pg.quit()
                     sys.exit()
 
-            self.pelota.actualizar()
+            self.raqueta.manejar_eventos()
+            
+
+
+            #Actualización de elementos del juego
+            game_over = self.pelota.actualizar(dt)
+            self.raqueta.actualizar()
+            self.pelota.comprobar_colision(self.raqueta)
 
             self.pantalla.fill((0, 0, 255))
             self.pantalla.blit(self.pelota.imagen, (self.pelota.x, self.pelota.y))
+            self.pantalla.blit(self.raqueta.imagen, (self.raqueta.x, self.raqueta.y))
 
+            #Refrescar pantalla
             pg.display.flip()
